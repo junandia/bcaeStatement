@@ -18,9 +18,9 @@ Coba demo online di sini:
 
 
 ## Cara Instalasi di Local
-1.Git pull.
+1.Git clone .
 
-```https://github.com/junandia/bcaeStatement.git```
+```git clone https://github.com/junandia/bcaeStatement.git```
 
 2. Install streamlit.
    
