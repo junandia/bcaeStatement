@@ -18,11 +18,16 @@ Coba demo online di sini:
 
 
 ## Cara Instalasi di Local
-1.Git pull
+1.Git pull.
+
 ```https://github.com/junandia/bcaeStatement.git```
-2. Install streamlit
+
+2. Install streamlit.
+   
 ```pip install streamlit```
-3. Jalankan streamlit
+
+3. Jalankan streamlit.
+
 ```streamlit run main.py```
 
 ## Lisensi
