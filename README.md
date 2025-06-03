@@ -16,6 +16,15 @@ Coba demo online di sini:
 2. Proses konversi berjalan otomatis.
 3. Download hasil dalam format Excel.
 
+
+## Cara Instalasi di Local
+1.Git pull
+```https://github.com/junandia/bcaeStatement.git```
+2. Install streamlit
+```pip install streamlit```
+3. Jalankan streamlit
+```streamlit run main.py```
+
 ## Lisensi
 Proyek ini menggunakan lisensi MIT.
 
