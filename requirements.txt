@@ -4,4 +4,3 @@ pandas==2.2.3
 streamlit==1.45.1
 tabula_py==2.10.0
 tqdm==4.67.1
-default-jre
