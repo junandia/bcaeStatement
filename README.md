@@ -1,6 +1,3 @@
-Berikut adalah contoh README.md sesuai permintaan Anda:
-
-```markdown
 # bcaeStatement
 
 **bcaeStatement** adalah sebuah konverter untuk BCA e-Statement yang mengubah file PDF laporan rekening BCA menjadi file Excel secara otomatis dan mudah.
@@ -21,9 +18,12 @@ Coba demo online di sini:
 
 ## Lisensi
 Proyek ini menggunakan lisensi MIT.
-```
+
 
 Rismawan Junandia
+
 rismawan.email@gmail.com
+
 [https://ukkazu.biz.id](http://ukkazu.biz.id/)
+
 [https://ukkazudigital.blogspot.com/](https://ukkazudigital.blogspot.com/)
