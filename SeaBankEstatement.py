@@ -43,7 +43,12 @@ def mainSeaBankEstatement():
             c = c.replace('IDR', '')
             c = c.replace('  ', ' ')
             return c.strip()
-        normalized_columns = {normalize_col(col): col for col in df_all.columns}
+        # Hilangkan duplikat kolom setelah normalisasi
+        normalized_columns = {}
+        for col in df_all.columns:
+            norm = normalize_col(col)
+            if norm not in normalized_columns:
+                normalized_columns[norm] = col
         expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR", "MASUK", "SALDO AKHIR"]
         # Cari kolom yang paling mirip dengan expected_columns
         selected_columns = []
