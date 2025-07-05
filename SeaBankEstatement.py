@@ -10,7 +10,6 @@ from openpyxl import load_workbook
 import streamlit as st
 
 
-
 def mainSeaBankEstatement():
     st.title("BCA e-Statement Converter")
 
