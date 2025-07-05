@@ -23,27 +23,31 @@ def mainSeaBankEstatement():
         # Ekstrak semua tabel dari semua halaman
         tables = read_pdf(temp_pdf_path, pages="all", multiple_tables=True, lattice=True)
 
-        # Filter tabel yang memiliki header khas transaksi tabungan
-        result_tables = []
-        for table in tables:
-            if table.shape[1] >= 4:  # Minimal kolom untuk transaksi: Tanggal, Keluar, Masuk, Saldo
-                header = table.columns.str.upper().tolist()
-                if any("TANGGAL" in col for col in header) and any("SALDO" in col for col in header):
-                    result_tables.append(table)
+# Deteksi tabel yang kemungkinan bagian dari "TABUNGAN - RINCIAN TRANSAKSI"
+    # Asumsikan format tabel transaksi selalu punya minimal 4 kolom dan baris pertama adalah tanggal
+    result_tables = []
+    bulan_pattern = r"\d{2} (JAN|FEB|MAR|APR|MEI|JUN|JUL|AGU|SEP|OKT|NOV|DES)"
 
-        # Gabungkan hasil
-        if result_tables:
-            final_df = pd.concat(result_tables, ignore_index=True)
+    for table in tables:
+        if table.shape[1] >= 4:
+            first_col = table.iloc[:, 0].astype(str).str.upper().str.strip()
+            if first_col.str.contains(bulan_pattern).any():
+                result_tables.append(table)
 
-            st.success("Berhasil mengekstrak tabel TABUNGAN - RINCIAN TRANSAKSI")
-            st.dataframe(final_df)
+    # Gabungkan hasil
+    if result_tables:
+        final_df = pd.concat(result_tables, ignore_index=True)
 
-            # Unduh sebagai CSV dan JSON
-            st.download_button("Unduh sebagai CSV", final_df.to_csv(index=False), "tabungan_transaksi.csv")
-            st.download_button("Unduh sebagai JSON", final_df.to_json(orient="records"), "tabungan_transaksi.json")
-        else:
-            st.warning("Tidak ditemukan tabel dengan header 'TABUNGAN - RINCIAN TRANSAKSI'.")
+        st.success("Berhasil mengekstrak tabel transaksi tabungan")
+        st.dataframe(final_df)
 
+        # Unduh sebagai CSV dan JSON
+        st.download_button("Unduh sebagai CSV", final_df.to_csv(index=False), "tabungan_transaksi.csv")
+        st.download_button("Unduh sebagai JSON", final_df.to_json(orient="records"), "tabungan_transaksi.json")
+    else:
+        st.warning("Tidak ditemukan tabel transaksi tabungan.")
 
+       # Hapus file sementara
+    os.remove(temp_pdf_path)
 if __name__ == "__main__":
     mainSeaBankEstatement()
