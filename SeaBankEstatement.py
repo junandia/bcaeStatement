@@ -20,61 +20,19 @@ def mainSeaBankEstatement():
             temp_pdf_path = tmp_file.name
 
         # Menggunakan tabula untuk mengekstrak tabel dari PDF
-        try:
-            tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True, guess=False)
-        except Exception as e:
-            st.error(f"Gagal membaca PDF dengan tabula: {e}")
-            st.stop()
+    try:
+        tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True)
+    except Exception as e:
+        st.error(f"Gagal membaca PDF dengan tabula: {e}")
+        st.stop()
 
-        # Gabungkan semua tabel yang berhasil dibaca
-        df_all = pd.concat(tables, ignore_index=True)
+    # Gabungkan semua tabel yang berhasil dibaca
+    df_all = pd.concat(tables, ignore_index=True)
 
-         # Normalisasi nama kolom dan tampilkan sebagai referensi
-        df_all.columns = [col.strip().upper() for col in df_all.columns if isinstance(col, str)]
-        #st.subheader("Nama Kolom yang Terdeteksi")
-        #st.write(df_all.columns.tolist())
+    # Tampilkan hasil awal
+    st.subheader("Hasil Ekstraksi Awal")
+    st.dataframe(df_all)
 
-        # Buat mapping kolom manual jika perlu
-        column_mapping = {
-            "UNNAMED: 0": "TANGGAL",
-            "UNNAMED: 1": "SALDO AKHIR (IDR)",
-            "TRANSAKSI": "TRANSAKSI",
-            "KELUAR (IDR)": "KELUAR (IDR)",
-            "MASUK (IDR)": "MASUK (IDR)"
-        }
-
-        df_all.rename(columns=column_mapping, inplace=True)
-        # Mapping manual jika header tidak dikenali
-        # Misalnya jika kolom tidak bernama, kita bisa set header secara manual:
-        expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR (IDR)", "MASUK (IDR)", "SALDO AKHIR (IDR)"]
-        #if len(df_all.columns) >= 5 and all(isinstance(col, str) for col in df_all.columns):
-        #    df_all.columns = expected_columns[:len(df_all.columns)]
-
-        # Ambil hanya kolom yang cocok
-        available_columns = [col for col in expected_columns if col in df_all.columns]
-        df_filtered = df_all[available_columns]
-
-        # Gabungkan baris transaksi multibaris (jika ada), khususnya kolom TRANSAKSI
-        if "TRANSAKSI" in df_filtered.columns:
-            df_filtered["TRANSAKSI"] = df_filtered["TRANSAKSI"].astype(str).str.replace("\n", " - ")
-
-        # Koreksi desimal yang hilang di kolom numerik
-        for col in ["KELUAR (IDR)", "MASUK (IDR)"]:
-            if col in df_filtered.columns:
-                df_filtered[col] = df_filtered[col].astype(str).str.replace(",", ".")
-                df_filtered[col] = df_filtered[col].str.extract(r'(\d+[.,]?\d*)')[0].str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
-                df_filtered[col] = pd.to_numeric(df_filtered[col], errors='coerce')
-
-
-        # Hapus baris yang seluruh selnya kosong
-        df_filtered = df_filtered.dropna(how='all')
-
-        st.subheader("Data Transaksi yang Difilter")
-        st.dataframe(df_filtered)
-            
-        csv = df_filtered.to_csv(index=False).encode('utf-8')
-        st.download_button("Download CSV", csv, "transaksi_seabank.csv", "text/csv")
-
-
+    csv = df_all.to_csv(index=False).encode('utf-8')
 if __name__ == "__main__":
     mainSeaBankEstatement()
