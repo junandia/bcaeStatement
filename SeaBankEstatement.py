@@ -54,6 +54,18 @@ def mainSeaBankEstatement():
         available_columns = [col for col in expected_columns if col in df_all.columns]
         df_filtered = df_all[available_columns]
 
+        # Gabungkan baris transaksi multibaris (jika ada), khususnya kolom TRANSAKSI
+        if "TRANSAKSI" in df_filtered.columns:
+            df_filtered["TRANSAKSI"] = df_filtered["TRANSAKSI"].astype(str).str.replace("\n", " - ")
+
+        # Koreksi desimal yang hilang di kolom numerik
+        for col in ["KELUAR (IDR)", "MASUK (IDR)"]:
+            if col in df_filtered.columns:
+                df_filtered[col] = df_filtered[col].astype(str).str.replace(",", ".")
+                df_filtered[col] = df_filtered[col].str.extract(r'(\d+[.,]?\d*)')[0].str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
+                df_filtered[col] = pd.to_numeric(df_filtered[col], errors='coerce')
+
+
         # Hapus baris yang seluruh selnya kosong
         df_filtered = df_filtered.dropna(how='all')
 
