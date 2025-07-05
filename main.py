@@ -22,7 +22,6 @@ def main():
         mainBcaEstatement()
     elif menu == "SeaBank":
         st.subheader("Konversi SeaBank e-Statement ke Excel")
-        st.write("Fitur ini masih dalam pengembangan.")
         mainSeaBankEstatement()
     elif menu == "Mandiri":
         st.subheader("Konversi Mandiri e-Statement ke Excel")
