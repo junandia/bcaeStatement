@@ -19,33 +19,32 @@ def mainSeaBankEstatement():
             tmp_file.write(uploaded_file.read())
             temp_pdf_path = tmp_file.name
 
-            # Menggunakan tabula untuk mengekstrak tabel dari PDF
-            try:
-                tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True)
-            except Exception as e:
-                st.error(f"Gagal membaca PDF dengan tabula: {e}")
-                st.stop()
+        # Menggunakan tabula untuk mengekstrak tabel dari PDF
+        try:
+            tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True)
+        except Exception as e:
+            st.error(f"Gagal membaca PDF dengan tabula: {e}")
+            st.stop()
 
-            # Gabungkan semua tabel yang berhasil dibaca
-            df_all = pd.concat(tables, ignore_index=True)
-            # Pilih kolom yang relevan saja (pastikan ejaan kolom sesuai hasil ekstraksi)
+        # Gabungkan semua tabel yang berhasil dibaca
+        df_all = pd.concat(tables, ignore_index=True)
+        # Pilih kolom yang relevan saja (pastikan ejaan kolom sesuai hasil ekstraksi)
         expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR (IDR)", "MASUK (IDR)", "SALDO AKHIR (IDR)"]
-        #df_filtered = df_all[[col for col in df_all.columns if col.strip().upper() in expected_columns]]
-    actual_columns = {col.strip().upper(): col for col in df_all.columns}
-    selected_columns = [actual_columns[col] for col in expected_columns if col in actual_columns]    
-    if not selected_columns:
-        st.warning("Tidak ada kolom yang cocok ditemukan dalam file PDF.")
-        st.stop()
+        actual_columns = {col.strip().upper(): col for col in df_all.columns}
+        selected_columns = [actual_columns[col] for col in expected_columns if col in actual_columns]    
+        if not selected_columns:
+            st.warning("Tidak ada kolom yang cocok ditemukan dalam file PDF.")
+            st.stop()
 
-    df_filtered = df_all[selected_columns]
-    df_filtered.columns = [col for col in expected_columns if col in actual_columns]  # rename agar rapi
+        df_filtered = df_all[selected_columns]
+        df_filtered.columns = [col for col in expected_columns if col in actual_columns]  # rename agar rapi
 
         # Tampilkan hasil awal
-    st.subheader("Hasil Ekstraksi Awal")
-    st.dataframe(df_all)
-    
-    csv = df_all.to_csv(index=False).encode('utf-8')
-    st.download_button("Download CSV", csv, "transaksi_seabank.csv", "text/csv")
+        st.subheader("Hasil Ekstraksi Awal")
+        st.dataframe(df_filtered)
+        
+        csv = df_filtered.to_csv(index=False).encode('utf-8')
+        st.download_button("Download CSV", csv, "transaksi_seabank.csv", "text/csv")
 
 
 if __name__ == "__main__":
