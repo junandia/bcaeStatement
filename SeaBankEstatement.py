@@ -30,9 +30,21 @@ def mainSeaBankEstatement():
         df_all = pd.concat(tables, ignore_index=True)
         # Normalisasi nama kolom agar lebih toleran terhadap variasi hasil OCR/tabula
         def normalize_col(col):
-            return col.strip().upper().replace('SALDO', 'SALDO').replace('TGL', 'TANGGAL').replace('TANGGAL', 'TANGGAL').replace('AKHIR', 'AKHIR').replace('TRANSAKSI', 'TRANSAKSI').replace('KELUAR', 'KELUAR').replace('MASUK', 'MASUK')
+            c = col.strip().upper()
+            c = c.replace('TGL', 'TANGGAL')
+            c = c.replace('TANGGAL', 'TANGGAL')
+            c = c.replace('SALDO', 'SALDO')
+            c = c.replace('AKHIR', 'AKHIR')
+            c = c.replace('TRANSAKSI', 'TRANSAKSI')
+            c = c.replace('KELUAR', 'KELUAR')
+            c = c.replace('MASUK', 'MASUK')
+            c = c.replace('DEBET', 'KELUAR')
+            c = c.replace('KREDIT', 'MASUK')
+            c = c.replace('IDR', '')
+            c = c.replace('  ', ' ')
+            return c.strip()
         normalized_columns = {normalize_col(col): col for col in df_all.columns}
-        expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR (IDR)", "MASUK (IDR)", "SALDO AKHIR (IDR)"]
+        expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR", "MASUK", "SALDO AKHIR"]
         # Cari kolom yang paling mirip dengan expected_columns
         selected_columns = []
         for exp_col in expected_columns:
@@ -49,11 +61,14 @@ def mainSeaBankEstatement():
             st.stop()
 
         df_filtered = df_all[selected_columns]
-        df_filtered.columns = [col for col in expected_columns if any(col in normalize_col(c) or normalize_col(c) in col for c in df_all.columns)]  # rename agar rapi
+        # Rename kolom agar rapi dan konsisten
+        rename_map = {}
+        for i, col in enumerate(df_filtered.columns):
+            if i < len(expected_columns):
+                rename_map[col] = expected_columns[i] + (" (IDR)" if expected_columns[i] in ["KELUAR", "MASUK", "SALDO AKHIR"] else "")
+        df_filtered = df_filtered.rename(columns=rename_map)
         # Menghapus baris yang tidak relevan
         df_filtered = df_filtered.dropna(how='all').reset_index(drop=True)
-        # Menghapus baris yang hanya berisi spasi
-        df_filtered = df_filtered[~df_filtered.apply(lambda x: x.astype(str).str.strip().eq('').all(), axis=1)]
         # Tampilkan hasil awal
         st.subheader("Hasil Ekstraksi Awal")
         st.dataframe(df_filtered)
