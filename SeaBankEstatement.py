@@ -1,12 +1,20 @@
-import streamlit as st
-import pdfplumber
+from tabula import read_pdf
 import pandas as pd
+import numpy as np
+import pdfplumber
 import io
 import re
+import os
+from tqdm import tqdm
+from openpyxl import load_workbook
+import streamlit as st
 
-st.title("Extract Transaksi dari Rekening Koran SeaBank")
 
-uploaded_file = st.file_uploader("Upload file rekening koran (PDF)", type="pdf")
+
+def mainSeaBankEstatement():
+    st.title("BCA e-Statement Converter")
+
+    uploaded_file = st.file_uploader("Upload file rekening koran (PDF)", type="pdf")
 
 if uploaded_file is not None:
     with pdfplumber.open(uploaded_file) as pdf:
@@ -36,3 +44,7 @@ if uploaded_file is not None:
 
     csv = df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV", csv, "transaksi_seabank.csv", "text/csv")
+
+
+if __name__ == "__main__":
+    mainSeaBankEstatement()
