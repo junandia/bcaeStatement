@@ -19,15 +19,18 @@ def mainSeaBankEstatement():
             tmp_file.write(uploaded_file.read())
             temp_pdf_path = tmp_file.name
 
-        # Menggunakan tabula untuk mengekstrak tabel dari PDF
-        try:
-            tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True)
-        except Exception as e:
-            st.error(f"Gagal membaca PDF dengan tabula: {e}")
-            st.stop()
+            # Menggunakan tabula untuk mengekstrak tabel dari PDF
+            try:
+                tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True)
+            except Exception as e:
+                st.error(f"Gagal membaca PDF dengan tabula: {e}")
+                st.stop()
 
-        # Gabungkan semua tabel yang berhasil dibaca
-        df_all = pd.concat(tables, ignore_index=True)
+            # Gabungkan semua tabel yang berhasil dibaca
+            df_all = pd.concat(tables, ignore_index=True)
+            # Pilih kolom yang relevan saja (pastikan ejaan kolom sesuai hasil ekstraksi)
+        expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR (IDR)", "MASUK (IDR)", "SALDO AKHIR (IDR)"]
+        df_filtered = df_all[[col for col in df_all.columns if col.strip().upper() in expected_columns]]
 
         # Tampilkan hasil awal
         st.subheader("Hasil Ekstraksi Awal")
