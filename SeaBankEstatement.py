@@ -21,22 +21,32 @@ def mainSeaBankEstatement():
             for page in pdf.pages:
                 all_text += page.extract_text() + "\n"
 
-        # Regex untuk ekstraksi transaksi
-        pattern = re.compile(r"(\d{2} JUN).*?(\d[\d\.]*|)\s+(\d[\d\.]*|)\s+(\d[\d\.]*)", re.MULTILINE)
-        
-        transaksi = []
-        for match in pattern.finditer(all_text):
-            tanggal = match.group(1)
-            keluar = match.group(2).replace(".", "") if match.group(2) else "0"
-            masuk = match.group(3).replace(".", "") if match.group(3) else "0"
-            saldo = match.group(4).replace(".", "")
-            
-            transaksi.append({
-                "Tanggal": tanggal,
-                "Keluar (IDR)": int(keluar),
-                "Masuk (IDR)": int(masuk),
-                "Saldo Akhir (IDR)": int(saldo)
-            })
+         # Regex untuk ekstraksi transaksi dengan deskripsi dan bulan dinamis
+    pattern = re.compile(
+        r"(\d{2} [A-Z]{3})\n(.*?)\n.*?(\d{1,3}(?:\.\d{3})*)?\s*(\d{1,3}(?:\.\d{3})*)?\s*(\d{1,3}(?:\.\d{3})*)",
+        re.MULTILINE
+    )
+
+    transaksi = []
+    for match in pattern.finditer(all_text):
+        tanggal = match.group(1)
+        deskripsi = match.group(2).strip()
+        keluar_raw = match.group(3)
+        masuk_raw = match.group(4)
+        saldo_raw = match.group(5)
+
+        keluar = int(keluar_raw.replace(".", "")) if keluar_raw else 0
+        masuk = int(masuk_raw.replace(".", "")) if masuk_raw else 0
+        saldo = int(saldo_raw.replace(".", "")) if saldo_raw else 0
+
+        transaksi.append({
+            "Tanggal": tanggal,
+            "Transaksi": deskripsi,
+            "Keluar (IDR)": keluar,
+            "Masuk (IDR)": masuk,
+            "Saldo Akhir (IDR)": saldo
+        })
+
 
         df = pd.DataFrame(transaksi)
         st.dataframe(df)
