@@ -20,38 +20,38 @@ def mainSeaBankEstatement():
             temp_pdf_path = tmp_file.name
 
         # Menggunakan tabula untuk mengekstrak tabel dari PDF
-    try:
-        tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True)
-    except Exception as e:
-        st.error(f"Gagal membaca PDF dengan tabula: {e}")
-        st.stop()
+        try:
+            tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True, guess=False)
+        except Exception as e:
+            st.error(f"Gagal membaca PDF dengan tabula: {e}")
+            st.stop()
 
-    # Gabungkan semua tabel yang berhasil dibaca
-    df_all = pd.concat(tables, ignore_index=True)
+        # Gabungkan semua tabel yang berhasil dibaca
+        df_all = pd.concat(tables, ignore_index=True)
 
-    # Normalisasi nama kolom dan buang spasi
-    df_all.columns = [col.strip().upper() for col in df_all.columns]
+         # Normalisasi nama kolom dan tampilkan sebagai referensi
+        df_all.columns = [col.strip().upper() for col in df_all.columns if isinstance(col, str)]
+        st.subheader("Nama Kolom yang Terdeteksi")
+        st.write(df_all.columns.tolist())
 
-    # Mapping kolom untuk menjaga konsistensi
-    expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR (IDR)", "MASUK (IDR)", "SALDO AKHIR (IDR)"]
-    available_columns = [col for col in expected_columns if col in df_all.columns]
+        # Mapping manual jika header tidak dikenali
+        # Misalnya jika kolom tidak bernama, kita bisa set header secara manual:
+        expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR (IDR)", "MASUK (IDR)", "SALDO AKHIR (IDR)"]
+        if len(df_all.columns) >= 5 and all(isinstance(col, str) for col in df_all.columns):
+            df_all.columns = expected_columns[:len(df_all.columns)]
 
-    if not available_columns:
-        st.warning("Tidak ada kolom yang cocok ditemukan dalam file PDF.")
-        st.stop()
+        # Ambil hanya kolom yang cocok
+        available_columns = [col for col in expected_columns if col in df_all.columns]
+        df_filtered = df_all[available_columns]
 
-    df_filtered = df_all[available_columns]
-    df_filtered.columns = available_columns  # pastikan urutannya sesuai
+        # Hapus baris yang seluruh selnya kosong
+        df_filtered = df_filtered.dropna(how='all')
 
-    # Hapus baris yang seluruh selnya kosong
-    df_filtered = df_filtered.dropna(how='all')
-
-    # Tampilkan hasil akhir
-    st.subheader("Data Transaksi yang Difilter")
-    st.dataframe(df_filtered)
-        
-    csv = df_filtered.to_csv(index=False).encode('utf-8')
-    st.download_button("Download CSV", csv, "transaksi_seabank.csv", "text/csv")
+        st.subheader("Data Transaksi yang Difilter")
+        st.dataframe(df_filtered)
+            
+        csv = df_filtered.to_csv(index=False).encode('utf-8')
+        st.download_button("Download CSV", csv, "transaksi_seabank.csv", "text/csv")
 
 
 if __name__ == "__main__":
