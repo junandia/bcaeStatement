@@ -10,15 +10,15 @@ import streamlit as st
 def extract_seabank_transactions(pdf_path):
     # Extract all tables from the PDF
     tables = read_pdf(pdf_path, pages="all", multiple_tables=True, lattice=True)
-    # Find the table with the header containing 'TABUNGAN - RINCIAN TRANSAKSI'
+    # Find the table with the header containing 'TANGGAL'
     for table in tables:
         if table is not None and any(
-            table.columns.astype(str).str.contains("TABUNGAN - RINCIAN TRANSAKSI", case=False, na=False)
+            table.columns.astype(str).str.contains("TANGGAL", case=False, na=False)
         ):
             return table
     # If not found, try to find by checking the first row
     for table in tables:
-        if table is not None and not table.empty and any(table.iloc[0].astype(str).str.contains("TABUNGAN - RINCIAN TRANSAKSI", case=False, na=False)):
+        if table is not None and not table.empty and any(table.iloc[0].astype(str).str.contains("TANGGAL", case=False, na=False)):
             # Set first row as header
             table.columns = table.iloc[0]
             return table[1:]
