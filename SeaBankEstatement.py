@@ -21,7 +21,7 @@ def mainSeaBankEstatement():
 
         # Menggunakan tabula untuk mengekstrak tabel dari PDF
     try:
-        tables = tabula.read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True)
+        tables = read_pdf(temp_pdf_path, pages='all', multiple_tables=True, lattice=True)
     except Exception as e:
         st.error(f"Gagal membaca PDF dengan tabula: {e}")
         st.stop()
