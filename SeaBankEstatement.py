@@ -31,14 +31,24 @@ def mainSeaBankEstatement():
 
          # Normalisasi nama kolom dan tampilkan sebagai referensi
         df_all.columns = [col.strip().upper() for col in df_all.columns if isinstance(col, str)]
-        st.subheader("Nama Kolom yang Terdeteksi")
-        st.write(df_all.columns.tolist())
+        #st.subheader("Nama Kolom yang Terdeteksi")
+        #st.write(df_all.columns.tolist())
 
+        # Buat mapping kolom manual jika perlu
+        column_mapping = {
+            "UNNAMED: 0": "TANGGAL",
+            "UNNAMED: 1": "SALDO AKHIR (IDR)",
+            "TRANSAKSI": "TRANSAKSI",
+            "KELUAR (IDR)": "KELUAR (IDR)",
+            "MASUK (IDR)": "MASUK (IDR)"
+        }
+
+        df_all.rename(columns=column_mapping, inplace=True)
         # Mapping manual jika header tidak dikenali
         # Misalnya jika kolom tidak bernama, kita bisa set header secara manual:
         expected_columns = ["TANGGAL", "TRANSAKSI", "KELUAR (IDR)", "MASUK (IDR)", "SALDO AKHIR (IDR)"]
-        if len(df_all.columns) >= 5 and all(isinstance(col, str) for col in df_all.columns):
-            df_all.columns = expected_columns[:len(df_all.columns)]
+        #if len(df_all.columns) >= 5 and all(isinstance(col, str) for col in df_all.columns):
+        #    df_all.columns = expected_columns[:len(df_all.columns)]
 
         # Ambil hanya kolom yang cocok
         available_columns = [col for col in expected_columns if col in df_all.columns]
