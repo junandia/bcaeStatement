@@ -5,6 +5,7 @@ import os
 from tqdm import tqdm
 from openpyxl import load_workbook
 import streamlit as st
+import fitz
 
 
 def mainSeaBankEstatement():
@@ -20,34 +21,37 @@ def mainSeaBankEstatement():
 
         st.info("Mengekstrak tabel, mohon tunggu...")
 
-        # Ekstrak semua tabel dari semua halaman
-        tables = read_pdf(temp_pdf_path, pages="all", multiple_tables=True, lattice=True)
+        # Hitung jumlah halaman dengan PyMuPDF
+        with fitz.open(temp_pdf_path) as pdf:
+            page_count = len(pdf)
 
-# Deteksi tabel yang kemungkinan bagian dari "TABUNGAN - RINCIAN TRANSAKSI"
-    # Asumsikan format tabel transaksi selalu punya minimal 4 kolom dan baris pertama adalah tanggal
-    result_tables = []
-    bulan_pattern = r"\d{2} (JAN|FEB|MAR|APR|MEI|JUN|JUL|AGU|SEP|OKT|NOV|DES)"
+        result_tables = []
 
-    for table in tables:
-        if table.shape[1] >= 4:
-            first_col = table.iloc[:, 0].astype(str).str.upper().str.strip()
-            if first_col.str.contains(bulan_pattern).any():
-                result_tables.append(table)
+        for page in range(1, page_count + 1):
+            tables = read_pdf(temp_pdf_path, pages=page, multiple_tables=True, lattice=True)
+            for table in tables:
+                if table.shape[1] >= 4:
+                    headers = [str(h).strip().upper() for h in table.columns]
+                    if ("TANGGAL" in headers[0] and
+                        "KELUAR" in headers[1] and
+                        "MASUK" in headers[2] and
+                        "SALDO" in headers[3]):
+                        result_tables.append(table)
 
-    # Gabungkan hasil
-    if result_tables:
-        final_df = pd.concat(result_tables, ignore_index=True)
+        # Gabungkan hasil
+        if result_tables:
+            final_df = pd.concat(result_tables, ignore_index=True)
 
-        st.success("Berhasil mengekstrak tabel transaksi tabungan")
-        st.dataframe(final_df)
+            st.success("Berhasil mengekstrak tabel transaksi tabungan berdasarkan header.")
+            st.dataframe(final_df)
 
-        # Unduh sebagai CSV dan JSON
-        st.download_button("Unduh sebagai CSV", final_df.to_csv(index=False), "tabungan_transaksi.csv")
-        st.download_button("Unduh sebagai JSON", final_df.to_json(orient="records"), "tabungan_transaksi.json")
-    else:
-        st.warning("Tidak ditemukan tabel transaksi tabungan.")
+            # Unduh sebagai CSV dan JSON
+            st.download_button("Unduh sebagai CSV", final_df.to_csv(index=False), "tabungan_transaksi.csv")
+            st.download_button("Unduh sebagai JSON", final_df.to_json(orient="records"), "tabungan_transaksi.json")
+        else:
+            st.warning("Tidak ditemukan tabel dengan header transaksi tabungan yang sesuai.")
 
-       # Hapus file sementara
-    os.remove(temp_pdf_path)
+        # Hapus file sementara
+        os.remove(temp_pdf_path)
 if __name__ == "__main__":
     mainSeaBankEstatement()
