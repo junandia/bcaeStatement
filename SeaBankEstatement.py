@@ -28,8 +28,8 @@ def mainSeaBankEstatement():
         result_tables = []
 
         for page in range(1, page_count + 1):
-            tables = read_pdf(temp_pdf_path, pages=page, multiple_tables=True, lattice=True)
-            for table in tables:
+            page_tables = read_pdf(temp_pdf_path, pages=page, multiple_tables=True, lattice=True)
+            for table in page_tables:
                 if table.shape[1] >= 4:
                     headers = [str(h).strip().upper() for h in table.columns]
                     if ("TANGGAL" in headers[0] and
