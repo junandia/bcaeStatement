@@ -1,307 +1,156 @@
-from tabula import read_pdf
+import PyPDF2
 import pandas as pd
-import numpy as np
-import os
-from tqdm import tqdm
-from openpyxl import load_workbook
+import re
 import streamlit as st
+import io
+import os
 
+# 1. Pastikan Page Config adalah perintah pertama
+st.set_page_config(page_title="Mandiri Converter Pro", layout="wide")
 
-def is_currency(value):
-    if pd.isna(value) or value == '':
-        return False
-    try:
-        float(str(value).replace(',', ''))
-    except ValueError:
-        return False
-    else:
-        return True
-
-
-def clean_numeric_columns(dataframe, columns):
-
-    for column in columns:
-        dataframe[column] = dataframe[column].str.replace(',', '')
-        dataframe[column] = pd.to_numeric(dataframe[column], errors='coerce')
-        dataframe[column] = dataframe[column].astype('float')
-
-    return dataframe
-
-
-def union_source(dataframes):
-
-    dfs = []
-    for temp_df in dataframes:
-
-        # Split DB into new column
-        temp_df[['amount', 'type']] = temp_df[4].str.extract(r'([\d,]+(?:\.\d+)?)\s*(DB|CR)?')
-        temp_df = temp_df.drop(temp_df.columns[4], axis=1)
-
-        if(len(temp_df.columns) == 7):
-            # Name column and reorder
-            temp_df.columns = ['date', 'desc', 'detail', 'branch', 'balance', 'amount', 'type']
-            temp_df = temp_df[['date', 'desc', 'detail', 'branch', 'amount', 'type', 'balance']]
-
-            dfs.append(temp_df)
-
-    df = pd.concat(dfs, ignore_index=True)
-    df = df.fillna(value=np.nan)
+def extract_mandiri_estatement(pdf_path):
+    extracted_data = []
+    
+    with open(pdf_path, 'rb') as file:
+        reader = PyPDF2.PdfReader(file)
+        table_started = False
+        
+        for page in reader.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+            
+            lines = text.split('\n')
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
                 
+                # Melewati header sampai ketemu tabel transaksi
+                if "Posting Date" in line and "Remark" in line:
+                    table_started = True
+                    i += 1
+                    continue
+                
+                if not table_started:
+                    i += 1
+                    continue
+
+                # 1. DETEKSI TANGGAL (Contoh: 01 Feb 2026,)
+                if re.match(r'^\d{2} \w{3} \d{4},', line):
+                    date_part = line.replace(',', '').strip()
+                    full_date = date_part
+                    remark_parts = []
+                    
+                    # 2. DETEKSI JAM (Baris tepat di bawah tanggal)
+                    i += 1
+                    if i < len(lines):
+                        next_line = lines[i].strip()
+                        # Pola jam HH:mm:ss
+                        time_match = re.match(r'^(\d{2}:\d{2}:\d{2})(.*)', next_line)
+                        if time_match:
+                            full_date = f"{date_part} {time_match.group(1)}"
+                            # Sisa teks setelah jam
+                            if time_match.group(2).strip():
+                                remark_parts.append(time_match.group(2).strip())
+                        else:
+                            remark_parts.append(next_line)
+                    
+                    # 3. KUMPULKAN REMARK SAMPAI KETEMU BARIS NOMINAL (Greedy)
+                    j = i + 1
+                    debit = credit = balance = 0.0
+                    found_money = False
+                    
+                    while j < len(lines):
+                        curr_line = lines[j].strip()
+                        
+                        # Berhenti jika bertemu transaksi baru (failsafe)
+                        if re.match(r'^\d{2} \w{3} \d{4},', curr_line):
+                            break
+                            
+                        # Cari baris yang mengandung minimal 3 angka desimal (Debit, Credit, Balance)
+                        num_pattern = r'(\d{1,3}(?:,\d{3})*(?:\.\d{2}))'
+                        all_nums = re.findall(num_pattern, curr_line)
+                        
+                        if len(all_nums) >= 3:
+                            debit = float(all_nums[-3].replace(',', ''))
+                            credit = float(all_nums[-2].replace(',', ''))
+                            balance = float(all_nums[-1].replace(',', ''))
+                            
+                            # Ambil teks sebelum angka pertama (sisa Remark/Ref No)
+                            text_before_nums = re.split(num_pattern, curr_line)[0].strip()
+                            if text_before_nums and text_before_nums != "-":
+                                remark_parts.append(text_before_nums)
+                            
+                            found_money = True
+                            j += 1
+                            break
+                        else:
+                            # Masukkan ke remark jika bukan footer
+                            if curr_line and not any(x in curr_line for x in ["Page", "Created", "Account Statement"]):
+                                remark_parts.append(curr_line)
+                        j += 1
+                    
+                    # 4. GABUNGKAN REMARK
+                    final_remark = " ".join(remark_parts).strip()
+                    final_remark = re.sub(' +', ' ', final_remark) # Bersihkan spasi ganda
+                    
+                    if found_money:
+                        extracted_data.append([
+                            full_date, final_remark, debit, credit, balance
+                        ])
+                    
+                    i = j - 1
+                i += 1
+                    
+    df = pd.DataFrame(extracted_data, columns=["Posting Date", "Remark", "Debit", "Credit", "Balance"])
     return df
 
-
-def insert_shifted_column(dataframe):
-
-    # Add new columns with shifted values for comparison
-    dataframe['prev_date'] = dataframe['date'].shift(1)
-    dataframe['prev_desc'] = dataframe['desc'].shift(1)
-    dataframe['prev_detail'] = dataframe['detail'].shift(1)
-    dataframe['prev_branch'] = dataframe['branch'].shift(1)
-    dataframe['prev_amount'] = dataframe['amount'].shift(1)
-    dataframe['prev_transaction_type'] = dataframe['type'].shift(1)
-    dataframe['prev_balance'] = dataframe['balance'].shift(1)
-
-    dataframe = dataframe.fillna(value=np.nan)
-
-    return dataframe
-
-
-def extract_transactions(dataframe):
-
-    transactions = []
-    details = []
-    descs = []
-    temp = {}
-    last_transaction = None  # Variable to track the last added transaction
-
-    for index, row in dataframe.iterrows():
-
-        if row['desc'] == 'S':
-            transaction = {
-                "date": temp['date'],
-                "desc": ' | '.join(descs).strip(' | ') if descs else '',
-                "detail": ' | '.join(details).strip(' | ') if details else '',
-                "branch": temp['branch'],
-                "amount": temp['amount'],
-                "transaction_type": temp['transaction_type'] if temp['transaction_type'] == 'DB' else 'CR',
-                "balance": temp['balance']
-            }
-            if transaction != last_transaction:  # Avoid duplicate addition
-                transactions.append(transaction)
-                last_transaction = transaction
-            break
-
-        if row['desc'] == 'SALDO AWAL':
-            transaction = {
-                "date": row['date'],
-                "desc": 'SALDO AWAL',
-                "detail": '',
-                "branch": '',
-                "amount": '',
-                "transaction_type": '',
-                "balance": row['balance']
-            }
-            transactions.append(transaction)
-            continue
-
-        if row['desc'] == 'KETE':
-            continue
-        
-        # New Transaction
-        if not pd.isna(row['amount']) and (
-            pd.isna(row['prev_amount']) or
-            row['amount'] != row['prev_amount'] or
-            row['desc'] != row['prev_desc'] or
-            row['detail'] != row['prev_detail'] or
-            row['branch'] != row['prev_branch']
-        ):
-            # Save previous transaction
-            if temp:
-                transaction = {
-                    "date": temp['date'],
-                    "desc": ' | '.join(descs).strip(' | ') if descs else '',
-                    "detail": ' | '.join(details).strip(' | ') if details else '',
-                    "branch": temp['branch'],
-                    "amount": temp['amount'],
-                    "transaction_type": temp['transaction_type'] if temp['transaction_type'] == 'DB' else 'CR',
-                    "balance": temp['balance']
-                }
-                if transaction != last_transaction:  # Avoid duplicate addition
-                    transactions.append(transaction)
-                    last_transaction = transaction
-                details = []
-                descs = []
-                temp = {}
-
-            temp = {
-                'date': row['date'],
-                'branch': row['branch'],
-                'amount': row['amount'],
-                'transaction_type': row['type'],
-                'balance': row['balance']
-            }
-
-        if not pd.isna(row['desc']) and row['desc'].strip():
-            descs.append(row['desc'])
-
-        if not pd.isna(row['detail']) and row['detail'].strip():
-            details.append(row['detail'])
-
-    # Save the last transaction if it hasn't been added yet
-    if temp:
-        transaction = {
-            "date": temp['date'],
-            "desc": ' | '.join(descs).strip(' | ') if descs else '',
-            "detail": ' | '.join(details).strip(' | ') if details else '',
-            "branch": temp['branch'],
-            "amount": temp['amount'],
-            "transaction_type": temp['transaction_type'] if temp['transaction_type'] == 'DB' else 'CR',
-            "balance": temp['balance']
-        }
-        if transaction != last_transaction:  # Avoid duplicate addition
-            transactions.append(transaction)
-
-    transaction_dataframe = pd.DataFrame(transactions)
-
-    return transaction_dataframe
-
-
-def calculate_balance(dataframe, init_balance):
-    dataframe['balance'] = init_balance
-    # Iterate over rows
-    for index, row in dataframe.iterrows():
-        # If transaction type is 'DB', subtract amount from balance
-        if row['transaction_type'] == 'DB':
-            if index == 0:
-                # For the first row, subtract amount from init_balance
-                dataframe.at[index, 'balance'] -= row['amount']
-            else:
-                # For subsequent rows, subtract amount from the previous row's balance
-                dataframe.at[index, 'balance'] = dataframe.at[index - 1, 'balance'] - row['amount']
-        # If transaction type is 'CR', add amount to balance
-        elif row['transaction_type'] == 'CR':
-            if index == 0:
-                # For the first row, add amount to init_balance
-                dataframe.at[index, 'balance'] += row['amount']
-            else:
-                # For subsequent rows, add amount to the previous row's balance
-                dataframe.at[index, 'balance'] = dataframe.at[index - 1, 'balance'] + row['amount']
-
-    return dataframe
-
-
-def save_to_excel(dataframe, output_filename, sheet_name):
-    if os.path.isfile(output_filename):
-        writer = pd.ExcelWriter(output_filename, engine="openpyxl", mode='a', if_sheet_exists='replace')
-    else:
-        writer = pd.ExcelWriter(output_filename, engine="openpyxl")
-
-    dataframe.to_excel(writer, sheet_name=sheet_name, index=False)
-
-    workbook = writer.book
-    worksheet = writer.sheets[sheet_name]
-
-    # Format column into currency IDR
-    for cell in worksheet['E']:
-        cell.number_format = '_-Rp* #,##0.00_-;[Red]-Rp* #,##0.00_-;_-Rp* "-"_-;_-@_-'
-    for cell in worksheet['G']:
-        cell.number_format = '_-Rp* #,##0.00_-;[Red]-Rp* #,##0.00_-;_-Rp* "-"_-;_-@_-'
-
-    # Autofit column width
-    for column_cells in worksheet.columns:
-        max_length = max(len(str(cell.value)) for cell in column_cells)
-        if str(column_cells[0].column) in ['5', '7']:
-            worksheet.column_dimensions[column_cells[0].column_letter].width = max_length + 10
-        else:
-            worksheet.column_dimensions[column_cells[0].column_letter].width = max_length + 2
-
-    writer.close()
-
-    return
-
-
-def get_year_month(sheet_name):
-    parts = sheet_name.split(' ', 1)  # Split into at most two parts
-    if len(parts) != 2:
-        raise ValueError(f"Invalid sheet name format: {sheet_name}")
-    year, month_name = parts
-    month_dict = {
-        'JANUARI': 1, 'FEBRUARI': 2, 'MARET': 3, 'APRIL': 4,
-        'MEI': 5, 'JUNI': 6, 'JULI': 7, 'AGUSTUS': 8,
-        'SEPTEMBER': 9, 'OKTOBER': 10, 'NOVEMBER': 11, 'DESEMBER': 12
-    }
-    if month_name not in month_dict:
-        raise ValueError(f"Invalid month name in sheet name: {month_name}")
-    return int(year), month_dict[month_name]
-
-
-def reorder_sheets(output_filename):
-
-    wb = load_workbook(output_filename)
-    sheet_names = wb.sheetnames
-    sorted_sheets = sorted(sheet_names, key=get_year_month, reverse=True)
-    wb._sheets.sort(key=lambda x: sorted_sheets.index(x.title))
-    wb.save(output_filename)
-
-    return
-
-statements_folder = "statements"
-
 def mainMandiriEstatement():
-    st.title("BCA e-Statement Converter")
+    st.title("🏦 Mandiri e-Statement Converter (Final Fix)")
+    st.markdown("Pemisahan Jam, Full Remark, dan Perbaikan Tombol Excel.")
 
-    # File uploader
-    uploaded_files = st.file_uploader("Upload PDF Statements", type="pdf", accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload PDF Mandiri", type="pdf", accept_multiple_files=True)
 
     if uploaded_files:
         all_transactions = []
-
         for uploaded_file in uploaded_files:
             file_path = f"temp_{uploaded_file.name}"
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.read())
 
-            # Process the uploaded file
-            header_dataframe = read_pdf(file_path, area=(70, 315, 141, 548), pages='1', pandas_options={'header': None, 'dtype': str}, force_subprocess=True)[0]
-            periode = header_dataframe.loc[header_dataframe[0] == 'PERIODE', 2].values[0]
-            periode = ' '.join(reversed(periode.split()))
-            no_rekening = header_dataframe.loc[header_dataframe[0] == 'NO. REKENING', 2].values[0]
+            try:
+                st.write(f"🔍 Memproses: **{uploaded_file.name}**")
+                df = extract_mandiri_estatement(file_path)
+                if not df.empty:
+                    df['source_file'] = uploaded_file.name
+                    all_transactions.append(df)
+            finally:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
 
-            dataframes = read_pdf(file_path, area=(231, 25, 797, 577), columns=[86, 184, 300, 340, 467], pages='all', pandas_options={'header': None, 'dtype': str}, force_subprocess=True)
+        if all_transactions:
+            global_dataframe = pd.concat(all_transactions, ignore_index=True)
+            st.write("### Preview Transaksi")
+            st.dataframe(global_dataframe, use_container_width=True)
 
-            init_balance = dataframes[0].loc[dataframes[0][1] == 'SALDO AWAL', 5].values[0]
-            init_balance = float(init_balance.replace(',', ''))
+            # --- BAGIAN EXPORT MENIRU SCRIPT BCA ---
+            output_filename = "Mandiri_Statement_Combined.xlsx"
+            
+            # Tulis ke file fisik sementara
+            with pd.ExcelWriter(output_filename, engine="openpyxl") as writer:
+                global_dataframe.to_excel(writer, sheet_name="All Transactions", index=False)
 
-            df = union_source(dataframes)
-            df = clean_numeric_columns(df, ['amount', 'balance'])
-            df = insert_shifted_column(df)
-
-            transaction_dataframe = extract_transactions(df)
-            transaction_dataframe = transaction_dataframe.drop('balance', axis=1)
-            transaction_dataframe = calculate_balance(transaction_dataframe, init_balance)
-
-            transaction_dataframe['source_file'] = uploaded_file.name
-            all_transactions.append(transaction_dataframe)
-
-        # Combine all transactions
-        global_dataframe = pd.concat(all_transactions, ignore_index=True)
-
-        # Display the dataframe
-        st.write("### Combined Transactions")
-        st.dataframe(global_dataframe)
-
-        # Download button
-        output_filename = "Combined_Statements.xlsx"
-        with pd.ExcelWriter(output_filename, engine="openpyxl") as writer:
-            global_dataframe.to_excel(writer, sheet_name="All Transactions", index=False)
-
-        with open(output_filename, "rb") as f:
-            st.download_button(
-                label="Download Excel File",
-                data=f,
-                file_name=output_filename,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            # Baca kembali file tersebut untuk diunduh
+            with open(output_filename, "rb") as f:
+                st.download_button(
+                    label="📥 Download Excel File",
+                    data=f,
+                    file_name=output_filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            
+            # Opsional: Download CSV tetap tersedia
+            st.download_button("📥 Download CSV", global_dataframe.to_csv(index=False), "mandiri.csv", "text/csv")
 
 if __name__ == "__main__":
     mainMandiriEstatement()
