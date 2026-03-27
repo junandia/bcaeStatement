@@ -287,7 +287,7 @@ def mainBniEstatement():
             with st.spinner("Membaca dan mengekstrak data dari PDF..."):
                 try:
                     # Extract data
-                    account_info, transactions, debug_logs = extract_transactions(uploaded_file, debug_mode)
+                    account_info, transactions, debug_logs = extract_transactions(uploaded_file, False)
 
                     # Store debug logs in session state
                     st.session_state['debug_logs'] = debug_logs
