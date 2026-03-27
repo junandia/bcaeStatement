@@ -7,6 +7,7 @@ from BcaEstatement import mainBcaEstatement
 from SeaBankEstatement import mainSeaBankEstatement
 from MandiriEstatement import mainMandiriEstatement
 from BsiEstatement import mainBsiEstatement
+from BniEstatement import mainBniEstatement
 
 def main():
     st.title("Aplikasi Statement Bank Konverter PDF to Excel")
@@ -14,7 +15,7 @@ def main():
 
     # Sidebar dengan menu pilihan
     st.sidebar.title('Menu')
-    menu = st.sidebar.selectbox('Pilih Menu', ["Beranda", "BCA", "SeaBank","Mandiri","BSI"])
+    menu = st.sidebar.selectbox('Pilih Menu', ["Beranda", "BCA", "SeaBank","Mandiri","BSI","BNI"])
 
     # Pilihan menu
     if menu == "BCA":
@@ -31,6 +32,10 @@ def main():
         st.subheader("Konversi BSI e-Statement ke Excel")
         st.write("Fitur ini masih dalam pengembangan.")
         mainBsiEstatement()
+    elif menu == "BNI":
+        st.subheader("Konversi BNI e-Statement ke Excel")
+        st.write("Fitur ini masih dalam pengembangan.")
+        mainBniEstatement()
     else:
         st.subheader("Selamat datang di aplikasi konversi statement bank!")
         st.write("Silakan pilih menu di sidebar untuk memulai.")
