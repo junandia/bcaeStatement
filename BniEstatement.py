@@ -246,7 +246,7 @@ def mainBniEstatement():
     # Header
     st.markdown('<h1 class="main-header">🏦 E-Statement BNI Converter</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Konversi e-statement bank (PDF) ke Excel/CSV dengan mudah</p>', unsafe_allow_html=True)
-    
+    debug_mode = False
     # Main content
     col1, col2 = st.columns([2, 1])
 
