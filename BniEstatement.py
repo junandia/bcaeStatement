@@ -27,14 +27,6 @@ import io
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 
-# Page config
-st.set_page_config(
-    page_title="BNI E-Statement Converter",
-    page_icon="🏦",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 # Custom CSS
 st.markdown("""
 <style>
