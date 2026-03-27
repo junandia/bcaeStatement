@@ -452,7 +452,7 @@ def parse_table_row(row: list) -> Optional[Dict]:
     return None
 
 
-def main():
+def mainBniEstatement():
     # Header
     st.markdown('<h1 class="main-header">🏦 E-Statement Bank Converter</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Konversi e-statement bank (PDF) ke Excel/CSV dengan mudah</p>', unsafe_allow_html=True)
@@ -721,4 +721,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    mainBniEstatement()
