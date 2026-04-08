@@ -81,7 +81,7 @@ def parse_seabank_table(pdf_path, year):
 # =========================
 # STREAMLIT APP
 # =========================
-def main():
+def mainSeaBankEstatement():
     st.title("🏦 SeaBank Parser (Table-Based, High Accuracy)")
 
     uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
@@ -136,4 +136,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    mainSeaBankEstatement()
