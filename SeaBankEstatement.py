@@ -163,7 +163,7 @@ def merge_results(table_data, text_data):
 # =========================
 # MAIN APP
 # =========================
-def main():
+def mainSeaBankEstatement():
     st.title("🏦 SeaBank Hybrid Parser (Production Ready)")
 
     uploaded_file = st.file_uploader("Upload PDF Rekening Koran", type=["pdf"])
@@ -221,4 +221,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    mainSeaBankEstatement()
