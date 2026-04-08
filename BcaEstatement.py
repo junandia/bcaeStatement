@@ -1,4 +1,4 @@
-import tabula
+from tabula import read_pdf
 import pandas as pd
 import numpy as np
 import os
