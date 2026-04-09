@@ -4,6 +4,8 @@ import pandas as pd
 import re
 import io
 
+from common_ui import render_page_header, render_upload_section, render_download_section
+
 # ============================================================
 # Constants
 # ============================================================
@@ -249,38 +251,21 @@ def format_idr_csv(value: int) -> str:
 
 
 def mainSeaBankEstatement():
-    st.markdown(
-        """
-        <style>
-            .metric-card {
-                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                border-radius: 12px;
-                padding: 20px;
-                text-align: center;
-                border: 1px solid #dee2e6;
-            }
-            .metric-label {
-                font-size: 0.85rem;
-                color: #6c757d;
-                margin-bottom: 5px;
-                font-weight: 500;
-            }
-            .metric-value {
-                font-size: 1.25rem;
-                font-weight: 700;
-                color: #212529;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
+    render_page_header(
+        "Seabank E-Statement Parser",
+        "Upload e-statement PDF SeaBank untuk mengekstrak data transaksi",
+        "Lihat hasil transaksi, filter, dan export data ke CSV/Excel.",
     )
 
-    st.title("🏦 Seabank E-Statement Parser")
-    st.caption("Upload e-statement PDF SeaBank untuk mengekstrak data transaksi")
+    # Upload section
+    render_upload_section(
+        "Upload File PDF SeaBank",
+        "Pilih file PDF e-statement SeaBank. Sistem akan otomatis mengekstrak data transaksi."
+    )
 
     # --- File Upload ---
     uploaded_file = st.file_uploader(
-        "Upload file PDF e-statement",
+        "Upload file PDF e-statement SeaBank",
         type=["pdf"],
         help="Pilih file PDF e-statement dari SeaBank",
         label_visibility="collapsed",

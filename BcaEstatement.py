@@ -6,6 +6,8 @@ from tqdm import tqdm
 from openpyxl import load_workbook
 import streamlit as st
 
+from common_ui import render_page_header, render_upload_section, render_download_section
+
 
 def is_currency(value):
     if pd.isna(value) or value == '':
@@ -248,15 +250,37 @@ def reorder_sheets(output_filename):
 statements_folder = "statements"
 
 def mainBcaEstatement():
-    st.title("BCA e-Statement Converter")
+    render_page_header(
+        "BCA e-Statement Converter",
+        "Upload file e-statement BCA lalu export hasilnya ke Excel.",
+    )
+
+    # Upload section
+    render_upload_section(
+        "Upload File PDF BCA",
+        "Pilih satu atau lebih file PDF e-statement BCA. Sistem akan otomatis memproses dan menggabungkan data transaksi."
+    )
 
     # File uploader
-    uploaded_files = st.file_uploader("Upload PDF Statements", type="pdf", accept_multiple_files=True)
+    uploaded_files = st.file_uploader(
+        "Upload PDF e-statement BCA",
+        type="pdf",
+        accept_multiple_files=True,
+        help="Pilih file PDF statement BCA",
+        label_visibility="collapsed",
+    )
 
     if uploaded_files:
+        # Progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+
         all_transactions = []
 
-        for uploaded_file in uploaded_files:
+        for i, uploaded_file in enumerate(uploaded_files):
+            status_text.text(f"Memproses file {i+1} dari {len(uploaded_files)}: {uploaded_file.name}")
+            progress_bar.progress((i) / len(uploaded_files))
+
             file_path = f"temp_{uploaded_file.name}"
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.read())
@@ -283,24 +307,47 @@ def mainBcaEstatement():
             transaction_dataframe['source_file'] = uploaded_file.name
             all_transactions.append(transaction_dataframe)
 
+        progress_bar.progress(1.0)
+        status_text.text("✅ Semua file berhasil diproses!")
+
         # Combine all transactions
         global_dataframe = pd.concat(all_transactions, ignore_index=True)
 
-        # Display the dataframe
-        st.write("### Combined Transactions")
-        st.dataframe(global_dataframe)
+        # Summary metrics
+        total_transactions = len(global_dataframe)
+        total_debit = global_dataframe[global_dataframe['transaction_type'] == 'DB']['amount'].sum()
+        total_credit = global_dataframe[global_dataframe['transaction_type'] == 'CR']['amount'].sum()
 
-        # Download button
-        output_filename = "Combined_Statements.xlsx"
+        st.markdown("---")
+        st.subheader("📊 Ringkasan Transaksi")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Transaksi", f"{total_transactions:,}")
+        with col2:
+            st.metric("Total Debit", f"Rp {total_debit:,.0f}")
+        with col3:
+            st.metric("Total Kredit", f"Rp {total_credit:,.0f}")
+
+        # Display the dataframe
+        st.markdown("---")
+        st.subheader("📋 Data Transaksi")
+        st.dataframe(global_dataframe, use_container_width=True)
+
+        # Download section
+        render_download_section()
+
+        output_filename = "BCA_Statements_Combined.xlsx"
         with pd.ExcelWriter(output_filename, engine="openpyxl") as writer:
             global_dataframe.to_excel(writer, sheet_name="All Transactions", index=False)
 
         with open(output_filename, "rb") as f:
             st.download_button(
-                label="Download Excel File",
+                label="📥 Download Excel File",
                 data=f,
                 file_name=output_filename,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
             )
 
 if __name__ == "__main__":

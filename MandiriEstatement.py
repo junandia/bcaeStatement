@@ -5,8 +5,7 @@ import streamlit as st
 import io
 import os
 
-# 1. Pastikan Page Config adalah perintah pertama
-st.set_page_config(page_title="Mandiri Converter Pro", layout="wide")
+from common_ui import render_page_header, render_upload_section, render_download_section
 
 def extract_mandiri_estatement(pdf_path):
     extracted_data = []
@@ -106,14 +105,35 @@ def extract_mandiri_estatement(pdf_path):
     return df
 
 def mainMandiriEstatement():
-    st.title("🏦 Mandiri e-Statement Converter (Final Fix)")
-    st.markdown("Pemisahan Jam, Full Remark, dan Perbaikan Tombol Excel.")
+    render_page_header(
+        "Mandiri e-Statement Converter",
+        "Upload file e-statement PDF Mandiri untuk mengkonversi ke Excel.",
+    )
 
-    uploaded_files = st.file_uploader("Upload PDF Mandiri", type="pdf", accept_multiple_files=True)
+    # Upload section
+    render_upload_section(
+        "Upload File PDF Mandiri",
+        "Pilih satu atau lebih file PDF e-statement Mandiri. Sistem akan otomatis memproses dan menggabungkan data transaksi."
+    )
+
+    uploaded_files = st.file_uploader(
+        "Upload PDF Mandiri",
+        type="pdf",
+        accept_multiple_files=True,
+        help="Pilih file PDF e-statement Mandiri",
+        label_visibility="collapsed",
+    )
 
     if uploaded_files:
+        # Progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+
         all_transactions = []
-        for uploaded_file in uploaded_files:
+        for i, uploaded_file in enumerate(uploaded_files):
+            status_text.text(f"Memproses file {i+1} dari {len(uploaded_files)}: {uploaded_file.name}")
+            progress_bar.progress((i) / len(uploaded_files))
+
             file_path = f"temp_{uploaded_file.name}"
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.read())
@@ -128,14 +148,37 @@ def mainMandiriEstatement():
                 if os.path.exists(file_path):
                     os.remove(file_path)
 
+        progress_bar.progress(1.0)
+        status_text.text("✅ Semua file berhasil diproses!")
+
         if all_transactions:
             global_dataframe = pd.concat(all_transactions, ignore_index=True)
-            st.write("### Preview Transaksi")
+
+            # Summary metrics
+            total_transactions = len(global_dataframe)
+            total_debit = global_dataframe['Debit'].sum()
+            total_credit = global_dataframe['Credit'].sum()
+
+            st.markdown("---")
+            st.subheader("📊 Ringkasan Transaksi")
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Transaksi", f"{total_transactions:,}")
+            with col2:
+                st.metric("Total Debit", f"Rp {total_debit:,.0f}")
+            with col3:
+                st.metric("Total Kredit", f"Rp {total_credit:,.0f}")
+
+            st.markdown("---")
+            st.subheader("📋 Data Transaksi")
             st.dataframe(global_dataframe, use_container_width=True)
 
-            # --- BAGIAN EXPORT MENIRU SCRIPT BCA ---
+            # Download section
+            render_download_section()
+
             output_filename = "Mandiri_Statement_Combined.xlsx"
-            
+
             # Tulis ke file fisik sementara
             with pd.ExcelWriter(output_filename, engine="openpyxl") as writer:
                 global_dataframe.to_excel(writer, sheet_name="All Transactions", index=False)
@@ -146,11 +189,18 @@ def mainMandiriEstatement():
                     label="📥 Download Excel File",
                     data=f,
                     file_name=output_filename,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
                 )
-            
+
             # Opsional: Download CSV tetap tersedia
-            st.download_button("📥 Download CSV", global_dataframe.to_csv(index=False), "mandiri.csv", "text/csv")
+            st.download_button(
+                label="📥 Download CSV",
+                data=global_dataframe.to_csv(index=False),
+                file_name="mandiri.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
 if __name__ == "__main__":
     mainMandiriEstatement()

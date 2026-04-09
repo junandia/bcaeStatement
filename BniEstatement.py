@@ -27,6 +27,8 @@ import io
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 
+from common_ui import render_page_header, render_upload_section, render_download_section
+
 # Custom CSS
 st.markdown("""
 <style>
@@ -243,36 +245,38 @@ def format_currency(amount: float) -> str:
 
 
 def mainBniEstatement():
-    # Header
-    st.markdown('<h1 class="main-header">🏦 E-Statement BNI Converter</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Konversi e-statement bank (PDF) ke Excel/CSV dengan mudah</p>', unsafe_allow_html=True)
+    render_page_header(
+        "BNI E-Statement Converter",
+        "Upload file PDF e-statement BNI untuk mengekstrak data transaksi ke Excel/CSV.",
+    )
     debug_mode = False
-    # Main content
-    col1, col2 = st.columns([2, 1])
 
-    with col1:
-        st.header("📄 Upload E-Statement")
+    # Upload section
+    render_upload_section(
+        "Upload File PDF BNI",
+        "Pilih file PDF e-statement BNI. Sistem akan otomatis mengekstrak data transaksi."
+    )
 
-        uploaded_file = st.file_uploader(
-            "Pilih file PDF e-statement bank",
-            type=['pdf'],
-            help="Upload file PDF e-statement dari bank Anda"
-        )
+    uploaded_file = st.file_uploader(
+        "Pilih file PDF e-statement bank",
+        type=['pdf'],
+        help="Upload file PDF e-statement dari bank Anda",
+        label_visibility="collapsed",
+    )
 
-    with col2:
-        st.header("📊 Info")
-        st.info("""
-        **Cara Penggunaan:**
-        1. Upload file PDF e-statement
-        2. Klik tombol "Proses"
-        3. Lihat hasil dan download
+    # Info section
+    st.info("""
+    **Cara Penggunaan:**
+    1. Upload file PDF e-statement
+    2. Klik tombol "Proses"
+    3. Lihat hasil dan download
 
-        **Fitur:**
-        - ✅ Ekstrak transaksi otomatis
-        - ✅ Export ke Excel
-        - ✅ Export ke CSV
-        - ✅ Ringkasan transaksi
-        """)
+    **Fitur:**
+    - ✅ Ekstrak transaksi otomatis
+    - ✅ Export ke Excel
+    - ✅ Export ke CSV
+    - ✅ Ringkasan transaksi
+    """)
 
     # Process file
     if uploaded_file is not None:
