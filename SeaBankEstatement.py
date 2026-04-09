@@ -249,12 +249,6 @@ def format_idr_csv(value: int) -> str:
 
 
 def mainSeaBankEstatement():
-    st.set_page_config(
-        page_title="Seabank E-Statement Parser",
-        page_icon="🏦",
-        layout="wide",
-    )
-
     st.markdown(
         """
         <style>
